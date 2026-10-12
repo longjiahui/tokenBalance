@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>添加连接</title>
+    <script type="module" src="/src/add.ts" defer></script>
+  </head>
+
+  <body>
+    <header class="titlebar">
+      <span class="tb-title">添加连接</span>
+      <div class="tb-actions">
+        <button id="btn-close" class="tb-btn tb-close" title="关闭">×</button>
+      </div>
+    </header>
+
+    <main class="add-body">
+      <form id="conn-form">
+        <label>
+          Provider
+          <select id="f-provider"></select>
+        </label>
+        <label>
+          名称
+          <input id="f-name" placeholder="连接名称" />
+        </label>
+        <label>
+          API Key
+          <input id="f-key" type="password" autocomplete="off" placeholder="sk-..." required />
+        </label>
+        <label>
+          Base URL（可选）
+          <input id="f-base" placeholder="留空使用默认地址" />
+        </label>
+        <p id="form-error" class="form-error"></p>
+        <div class="form-actions">
+          <button type="button" id="f-cancel" class="btn">取消</button>
+          <button type="submit" id="f-save" class="btn primary">验证并保存</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

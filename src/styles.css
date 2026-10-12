@@ -1,0 +1,360 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #e6e9ef;
+  background-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: rgba(22, 25, 31, var(--win-alpha, 1));
+  user-select: none;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ---------- 自定义标题栏 ---------- */
+
+.titlebar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 6px 0 14px;
+  background: rgba(25, 29, 36, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tb-title {
+  flex: 1;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tb-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #aab3bf;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tb-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.tb-btn.confirm {
+  color: #ff6b6b;
+}
+
+.tb-close {
+  font-size: 15px;
+  padding: 2px 10px;
+}
+
+.tb-close:hover {
+  background: rgba(224, 92, 92, 0.85);
+  color: #fff;
+}
+
+.tb-more {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* ---------- More 下拉菜单 ---------- */
+
+.more-wrap {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  width: 88px;
+  padding: 5px;
+  background: rgba(30, 34, 42, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dropdown.hidden {
+  display: none;
+}
+
+.dd-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #e6e9ef;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dd-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dd-item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.dd-danger:hover {
+  background: rgba(224, 92, 92, 0.25);
+  color: #ff9b9b;
+}
+
+.dd-sep {
+  height: 1px;
+  margin: 5px 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 6px 2px;
+  font-size: 12px;
+  color: #9aa4b2;
+}
+
+.dd-val {
+  font-variant-numeric: tabular-nums;
+  color: #c3cad4;
+}
+
+.dd-slider {
+  display: block;
+  width: calc(100% - 12px);
+  margin: 2px 6px 4px;
+  height: 4px;
+  accent-color: #3b6ef5;
+  cursor: pointer;
+}
+
+/* ---------- 连接窗口卡片 ---------- */
+
+.card-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 14px;
+}
+
+.badge {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8ab4ff;
+  background: rgba(42, 49, 64, 0.9);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.plan {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c9a6ff;
+  background: rgba(51, 42, 71, 0.9);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.wallet-total {
+  margin: 8px 0 2px;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-sub {
+  font-size: 12px;
+  color: #9aa4b2;
+}
+
+.quota {
+  margin-top: 10px;
+}
+
+.quota:first-child {
+  margin-top: 4px;
+}
+
+.quota-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #c3cad4;
+}
+
+.bar {
+  height: 8px;
+  background: rgba(38, 43, 51, 0.9);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #4caf7d;
+  border-radius: 4px;
+  transition: width 0.4s;
+}
+
+.bar-fill.warn {
+  background: #e0a23c;
+}
+
+.bar-fill.danger {
+  background: #e05c5c;
+}
+
+.quota-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #9aa4b2;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: #9aa4b2;
+}
+
+.err {
+  color: #ff7b7b;
+}
+
+.empty {
+  padding: 48px 0;
+  color: #9aa4b2;
+  text-align: center;
+}
+
+/* ---------- 添加连接窗口 ---------- */
+
+.add-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.add-body label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #9aa4b2;
+}
+
+.add-body input,
+.add-body select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e6e9ef;
+  background: rgba(20, 23, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  outline: none;
+}
+
+.add-body input:focus,
+.add-body select:focus {
+  border-color: #3b6ef5;
+}
+
+.form-error {
+  min-height: 16px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #ff7b7b;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #e6e9ef;
+  background: rgba(38, 43, 51, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: rgba(47, 54, 64, 0.9);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn.primary {
+  background: #3b6ef5;
+  border-color: #3b6ef5;
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: #4d7cf7;
+}

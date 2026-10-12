@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Token Balance</title>
+    <script type="module" src="/src/conn.ts" defer></script>
+  </head>
+
+  <body>
+    <header class="titlebar">
+      <span class="badge" id="provider-badge"></span>
+      <span class="tb-title" id="conn-name"></span>
+      <span class="plan hidden" id="plan"></span>
+      <div class="more-wrap" id="more-wrap">
+        <button id="btn-more" class="tb-btn tb-more" title="更多">⋯</button>
+        <div id="more-menu" class="dropdown hidden">
+          <button id="dd-refresh" class="dd-item" title="刷新">刷新</button>
+          <button id="dd-delete" class="dd-item dd-danger" title="删除该连接">删除</button>
+          <div class="dd-sep"></div>
+          <div class="dd-row">
+            <span class="dd-label">不透明度</span>
+            <span id="dd-opacity-val" class="dd-val">100%</span>
+          </div>
+          <input id="dd-opacity" class="dd-slider" type="range" min="30" max="100" step="5" value="100" />
+        </div>
+      </div>
+      <button id="btn-close" class="tb-btn tb-close" title="隐藏（托盘可再次打开）">×</button>
+    </header>
+    <main id="card" class="card-body"></main>
+  </body>
+</html>
