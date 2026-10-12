@@ -74,29 +74,79 @@ fn positions_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     config_path(app).map(|p| p.with_file_name("positions.json"))
 }
 
-fn load_positions(app: &AppHandle) -> HashMap<String, [f64; 2]> {
-    positions_path(app)
-        .ok()
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|content| serde_json::from_str(&content).ok())
-        .unwrap_or_default()
+#[derive(Serialize, Deserialize, Default)]
+struct PersistedState {
+    #[serde(default)]
+    positions: HashMap<String, [f64; 2]>,
+    #[serde(default)]
+    visible: HashMap<String, bool>,
 }
 
-fn save_positions_map(app: &AppHandle, map: &HashMap<String, [f64; 2]>) {
+/// 兼容旧格式（纯 positions map）
+fn load_persisted_state(app: &AppHandle) -> PersistedState {
+    let content = positions_path(app)
+        .ok()
+        .and_then(|path| fs::read_to_string(path).ok());
+    let Some(content) = content else {
+        return PersistedState::default();
+    };
+    serde_json::from_str::<PersistedState>(&content).unwrap_or_else(|_| PersistedState {
+        positions: serde_json::from_str(&content).unwrap_or_default(),
+        visible: HashMap::new(),
+    })
+}
+
+fn save_persisted_state(app: &AppHandle, state: &PersistedState) {
     let Ok(path) = positions_path(app) else {
         return;
     };
     if let Some(dir) = path.parent() {
         let _ = fs::create_dir_all(dir);
     }
-    if let Ok(json) = serde_json::to_string_pretty(map) {
+    if let Ok(json) = serde_json::to_string_pretty(state) {
         let _ = fs::write(path, json);
     }
 }
 
 struct WindowPositions {
     map: Mutex<HashMap<String, (f64, f64)>>,
+    visible: Mutex<HashMap<String, bool>>,
     dirty: Mutex<bool>,
+}
+
+/// 记忆连接窗口的显示/隐藏状态
+fn set_conn_visible(app: &AppHandle, id: &str, visible: bool) {
+    if let Some(state) = app.try_state::<WindowPositions>() {
+        state
+            .visible
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), visible);
+        *state.dirty.lock().unwrap() = true;
+    }
+}
+
+fn stored_visible(app: &AppHandle, id: &str) -> bool {
+    app.try_state::<WindowPositions>()
+        .and_then(|s| s.visible.lock().unwrap().get(id).copied())
+        .unwrap_or(true)
+}
+
+/// 已记忆且合法的位置，否则右上角堆叠位
+fn restore_pos(app: &AppHandle, id: &str) -> (f64, f64) {
+    if let Some(state) = app.try_state::<WindowPositions>() {
+        if let Some((x, y)) = state.map.lock().unwrap().get(id).copied() {
+            if position_visible(x, y, WIN_W, WIN_H, &monitor_rects(app)) {
+                return (x, y);
+            }
+        }
+    }
+    let count = app
+        .webview_windows()
+        .keys()
+        .filter(|l| l.starts_with("conn-"))
+        .count();
+    stack_position(app, count)
 }
 
 fn monitor_rects(app: &AppHandle) -> Vec<(f64, f64, f64, f64)> {
@@ -160,8 +210,8 @@ fn stack_position(app: &AppHandle, index: usize) -> (f64, f64) {
 fn resolve_initial_positions(
     app: &AppHandle,
     conns: &[Connection],
+    saved: &HashMap<String, [f64; 2]>,
 ) -> HashMap<String, (f64, f64)> {
-    let saved = load_positions(app);
     let monitors = monitor_rects(app);
     let mut result = HashMap::new();
     let mut stack_index = 0usize;
@@ -222,6 +272,11 @@ fn show_connection_window(
     window.set_focus()?;
     if let Some(state) = app.try_state::<WindowPositions>() {
         state.map.lock().unwrap().insert(conn.id.clone(), pos);
+        state
+            .visible
+            .lock()
+            .unwrap()
+            .insert(conn.id.clone(), true);
         *state.dirty.lock().unwrap() = true;
     }
     Ok(())
@@ -234,27 +289,14 @@ fn toggle_connection_window(app: &AppHandle, id: &str) {
         if let Some(window) = app.get_webview_window(&label) {
             let _ = window.hide();
         }
+        set_conn_visible(app, id, false);
     } else if let Some(conn) = read_connections(app).into_iter().find(|c| c.id == id) {
-        let pos = load_positions(app)
-            .get(id)
-            .and_then(|p| {
-                let (x, y) = (p[0], p[1]);
-                position_visible(x, y, WIN_W, WIN_H, &monitor_rects(app)).then_some((x, y))
-            })
-            .unwrap_or_else(|| {
-                let count = app
-                    .webview_windows()
-                    .keys()
-                    .filter(|l| l.starts_with("conn-"))
-                    .count();
-                stack_position(app, count)
-            });
-        let _ = show_connection_window(app, &conn, pos);
+        let _ = show_connection_window(app, &conn, restore_pos(app, id));
     }
     sync_conn_check(app, id, !visible);
 }
 
-/// 左键托盘图标：有窗口可见则全部隐藏，否则全部显示
+/// 左键托盘图标：有窗口可见则全部隐藏，否则全部显示（含未创建窗口的连接）
 fn toggle_all_windows(app: &AppHandle) {
     let conn_windows: Vec<WebviewWindow> = app
         .webview_windows()
@@ -265,17 +307,21 @@ fn toggle_all_windows(app: &AppHandle) {
     let any_visible = conn_windows
         .iter()
         .any(|w| w.is_visible().unwrap_or(false));
-    for window in &conn_windows {
-        if any_visible {
+    if any_visible {
+        for window in &conn_windows {
             let _ = window.hide();
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
+        }
+        for conn in read_connections(app) {
+            set_conn_visible(app, &conn.id, false);
+        }
+    } else {
+        for conn in read_connections(app) {
+            let _ = show_connection_window(app, &conn, restore_pos(app, &conn.id));
         }
     }
     if let Some(state) = app.try_state::<TrayState>() {
         for (id, item) in state.conn_items.lock().unwrap().iter() {
-            let _ = item.set_checked(!any_visible && window_visible(app, &conn_label(id)));
+            let _ = item.set_checked(stored_visible(app, id));
         }
     }
 }
@@ -312,7 +358,8 @@ fn rebuild_tray(app: &AppHandle) -> Result<(), String> {
 
     let mut new_items: HashMap<String, CheckMenuItem<tauri::Wry>> = HashMap::new();
     for conn in read_connections(app) {
-        let visible = window_visible(app, &conn_label(&conn.id));
+        // 勾选状态以记忆的显示/隐藏为准（窗口可能尚未创建）
+        let visible = stored_visible(app, &conn.id);
         let item = CheckMenuItem::with_id(
             app,
             conn_label(&conn.id),
@@ -344,11 +391,12 @@ fn open_add(app: AppHandle) {
     }
 }
 
-/// 隐藏调用方窗口；连接窗口隐藏时同步托盘勾选状态
+/// 隐藏调用方窗口；连接窗口隐藏时同步托盘勾选状态并记忆
 #[tauri::command]
 fn hide_window(window: WebviewWindow) {
     let _ = window.hide();
     if let Some(id) = window.label().strip_prefix("conn-") {
+        set_conn_visible(window.app_handle(), id, false);
         sync_conn_check(window.app_handle(), id, false);
     }
 }
@@ -372,6 +420,12 @@ fn open_connection_window(app: AppHandle, id: String) -> Result<(), String> {
 fn close_connection_window(app: AppHandle, id: String) {
     if let Some(window) = app.get_webview_window(&conn_label(&id)) {
         let _ = window.close();
+    }
+    // 连接已删除，清理记忆
+    if let Some(state) = app.try_state::<WindowPositions>() {
+        state.map.lock().unwrap().remove(&id);
+        state.visible.lock().unwrap().remove(&id);
+        *state.dirty.lock().unwrap() = true;
     }
 }
 
@@ -406,8 +460,23 @@ pub fn run() {
             refresh_tray
         ])
         .setup(|app| {
+            // 预加载持久化状态（位置 + 显示/隐藏）
+            let persisted = load_persisted_state(app.handle());
+            app.manage(WindowPositions {
+                map: Mutex::new(
+                    persisted
+                        .positions
+                        .iter()
+                        .map(|(k, p)| (k.clone(), (p[0], p[1])))
+                        .collect(),
+                ),
+                visible: Mutex::new(persisted.visible.clone()),
+                dirty: Mutex::new(false),
+            });
+
             let tray = TrayIconBuilder::with_id("main")
-                .icon(app.default_window_icon().unwrap().clone())
+                // 编译期显式嵌入图标，确保与 icons/32x32.png 一致
+                .icon(tauri::include_image!("icons/32x32.png"))
                 .tooltip("Token Balance")
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -443,21 +512,20 @@ pub fn run() {
                 tray,
                 conn_items: Mutex::new(HashMap::new()),
             });
-            app.manage(WindowPositions {
-                map: Mutex::new(HashMap::new()),
-                dirty: Mutex::new(false),
-            });
 
-            // 启动时为每个已保存的连接创建窗口：校验记忆位置，非法则重新排布
+            // 启动时按记忆的显示/隐藏状态创建窗口：位置校验，非法则重新排布
             let conns = read_connections(app.handle());
-            let positions = resolve_initial_positions(app.handle(), &conns);
+            let positions = resolve_initial_positions(app.handle(), &conns, &persisted.positions);
             for conn in &conns {
+                if !stored_visible(app.handle(), &conn.id) {
+                    continue;
+                }
                 let pos = positions.get(&conn.id).copied().unwrap_or((160.0, 140.0));
                 let _ = show_connection_window(app.handle(), conn, pos);
             }
             rebuild_tray(app.handle())?;
 
-            // 后台线程：位置变更后延迟落盘，避免拖动时频繁写文件
+            // 后台线程：位置/可见状态变更后延迟落盘，避免拖动时频繁写文件
             let handle = app.handle().clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_millis(1500));
@@ -469,15 +537,18 @@ pub fn run() {
                     }
                     *dirty = false;
                 }
-                let map: HashMap<String, [f64; 2]> = state
-                    .map
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .map(|(k, (x, y))| (k.clone(), [*x, *y]))
-                    .collect();
+                let persisted = PersistedState {
+                    positions: state
+                        .map
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .map(|(k, (x, y))| (k.clone(), [*x, *y]))
+                        .collect(),
+                    visible: state.visible.lock().unwrap().clone(),
+                };
                 drop(state);
-                save_positions_map(&handle, &map);
+                save_persisted_state(&handle, &persisted);
             });
             Ok(())
         })
