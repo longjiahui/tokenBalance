@@ -2,6 +2,8 @@
 
 # Token Balance
 
+![screenshot](./screenshot.png)
+
 一个轻量的 **Tauri 2** 桌面小组件，常驻系统托盘，一览 LLM API 余额 / 配额——每个连接一个置顶迷你窗口。
 
 ## 功能

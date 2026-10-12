@@ -2,6 +2,8 @@
 
 # Token Balance
 
+![screenshot](./screenshot.png)
+
 A lightweight **Tauri 2** desktop widget that lives in your system tray and shows LLM API balance / quota at a glance — one tiny always-on-top window per connection.
 
 ## Features
